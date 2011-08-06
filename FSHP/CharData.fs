@@ -1,0 +1,36 @@
+﻿namespace FSHP
+
+module Char =
+    let [<Literal>] NUL = '\u0000'        // Null character
+    let [<Literal>] SOH = '\u0001'        // Start of Heading
+    let [<Literal>] STX = '\u0002'        // Start of Text
+    let [<Literal>] ETX = '\u0003'        // End-of-text character
+    let [<Literal>] EOT = '\u0004'        // End-of-transmission character
+    let [<Literal>] ENQ = '\u0005'        // Enquiry character
+    let [<Literal>] ACK = '\u0006'        // Acknowledge character
+    let [<Literal>] BEL = '\u0007'        // Bell character
+    let [<Literal>] BS  = '\u0008'        // Backspace
+    let [<Literal>] HT  = '\u0009'        // Horizontal tab
+    let [<Literal>] LF  = '\u000A'        // Line feed
+    let [<Literal>] VT  = '\u000B'        // Vertical tab
+    let [<Literal>] FF  = '\u000C'        // Form feed
+    let [<Literal>] CR  = '\u000D'        // Carriage return
+    let [<Literal>] SO  = '\u000E'        // Shift Out
+    let [<Literal>] SI  = '\u000F'        // Shift In
+    let [<Literal>] DLE = '\u0010'        // Data Link Escape
+    let [<Literal>] DC1 = '\u0011'        // Device Control 1
+    let [<Literal>] DC2 = '\u0012'        // Device Control 2
+    let [<Literal>] DC3 = '\u0013'        // Device Control 3
+    let [<Literal>] DC4 = '\u0014'        // Device Control 4
+    let [<Literal>] NAK = '\u0015'        // Negative-acknowledge character
+    let [<Literal>] SYN = '\u0016'        // Synchronous Idle
+    let [<Literal>] ETB = '\u0017'        // End of Transmission Block
+    let [<Literal>] CAN = '\u0018'        // Cancel character
+    let [<Literal>] EM  = '\u0019'        // End of Medium
+    let [<Literal>] SUB = '\u001A'        // Substitute character
+    let [<Literal>] ESC = '\u001B'        // Escape character
+    let [<Literal>] FS  = '\u001C'        // File Separator
+    let [<Literal>] GS  = '\u001D'        // Group Separator
+    let [<Literal>] RS  = '\u001E'        // Record Separator
+    let [<Literal>] US  = '\u001F'        // Unit Separator
+    let [<Literal>] SP  = '\u0020'        // Space
