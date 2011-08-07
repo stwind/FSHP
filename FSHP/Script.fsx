@@ -9,4 +9,4 @@
 
 open FSHP.Tokenizer
 
-tokenize "a1&$a1d" |> printfn "%A"
+tokenize "a1&<ga1d" |> printfn "%A"

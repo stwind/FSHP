@@ -6,8 +6,9 @@ module TokenTypes =
     type HtmlAttr = HtmlAttr of string * string
 
     type Token = 
-        | StartTag of string * HtmlAttr list * bool
+        | StartTag of char list * HtmlAttr list * bool
         | EndTag of string
-        | TextNode of string
+        | Character of string
         | DocType of string
         | Comment of string
+        | EOF
