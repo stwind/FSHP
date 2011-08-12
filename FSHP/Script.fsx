@@ -4,9 +4,10 @@
 
 #load "CharData.fs"
 #load "TokenTypes.fs"
+#load "Parser.fs"
 #load "ParserStates.fs"
 #load "Tokenizer.fs"
 
 open FSHP.Tokenizer
 
-tokenize "a1&<ga1d" |> printfn "%A"
+tokenize "<html>hello</html>" |> printfn "%A"

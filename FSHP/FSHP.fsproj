@@ -44,11 +44,12 @@
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\Silverlight\$(SilverlightVersion)\Microsoft.Silverlight.Common.targets" />
   <ItemGroup>
     <None Include="Script.fsx" />
+    <Compile Include="Helper.fs" />
     <Compile Include="CharData.fs" />
     <Compile Include="TokenTypes.fs" />
+    <Compile Include="Parser.fs" />
     <Compile Include="ParserStates.fs" />
     <Compile Include="Tokenizer.fs" />
-    <Compile Include="Helper.fs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="mscorlib" />
