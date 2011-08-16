@@ -3,11 +3,13 @@
 // Note that script files will not be part of the project build.
 
 #load "CharData.fs"
-#load "TokenTypes.fs"
-#load "Parser.fs"
-#load "ParserStates.fs"
-#load "Tokenizer.fs"
+#load "Helper.fs"
+#load "Tokenizer.Tokens.fs"
+#load "Tokenizer.Actions.fs"
+#load "Tokenizer.States.fs"
+#load "Tokenizer.Controller.fs"
 
 open FSHP.Tokenizer
+open FSHP.Tokenizer.States
 
 tokenize "<html>hello</html>" |> printfn "%A"

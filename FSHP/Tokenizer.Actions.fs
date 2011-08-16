@@ -1,10 +1,10 @@
-﻿namespace FSHP
+﻿namespace FSHP.Tokenizer
 
 open System
 open FSHP
-open FSHP.TokenTypes
+open FSHP.Tokenizer.Tokens
 
-module Parser =
+module Actions =
     type ParseError = {
             position : int
             reason : string
@@ -40,8 +40,7 @@ module Parser =
         consume state [] count
 
     let isFollowedBy (str : string) state =
-        let cp, is = state.currentPos, state.inputStream
-        is.[cp .. str.Length] = str
+        let cp, is = state.currentPos, state.inputStream in is.[cp .. str.Length] = str
 
     let rollback state =
         match state.currentPos > 0 with
@@ -79,8 +78,13 @@ module Parser =
     let emitToken token state = 
         { state with tokenStream = token :: state.tokenStream }
 
-    let emitCurrentToken state =
-        { emitToken state.currentToken.Value state with currentToken = None }
+    let rec emitCurrentToken state =
+        match state.charToken.Length with
+        | 0 ->
+            { emitToken state.currentToken.Value state with currentToken = None }
+        | _ -> 
+            let str = String(state.charToken |> List.rev |> List.toArray)
+            { emitToken (Character str) state with charToken = [] } |> emitCurrentToken
 
     let parseError reason state =
         let err = { position = state.currentPos; reason = reason  }
@@ -93,6 +97,8 @@ module Parser =
         match state.currentToken with
         | Some (StartTag (name, attrs, selfClosing)) ->  
             (name + string c, attrs, selfClosing) |> StartTag |> Some |> newToken <| state
+        | Some (EndTag name) ->
+            name + string c |> EndTag |> Some |> newToken <| state
         | Some (Comment name) ->
             name + string c |> Comment |> Some |> newToken <| state
         | Some (DocType (name, pid, sid, quirk)) ->

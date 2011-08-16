@@ -1,7 +1,7 @@
-﻿namespace FSHP
+﻿namespace FSHP.Tokenizer
 
 [<AutoOpen>]
-module TokenTypes =
+module Tokens =
 
     type HtmlAttr = HtmlAttr of string * string
 

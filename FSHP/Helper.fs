@@ -1,8 +1,16 @@
 ﻿namespace FSHP
 
+open System
+open System.Text.RegularExpressions
+
 module Helper =
+    
+    let regex s = new Regex(s)
 
-    open System
+    let (=~) s (re:Regex) = re.IsMatch(s)
 
-    let toHexDigit n =
-        if n < 10 then char (n + 0x30) else char (n + 0x62)
+    let (<>~) s (re:Regex) = not (s =~ re)
+
+    let reMatches (re:Regex) s = re.Matches(s)
+
+    let reMatch (re:Regex) s = re.Match(s)

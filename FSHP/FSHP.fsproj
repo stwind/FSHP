@@ -46,22 +46,18 @@
     <None Include="Script.fsx" />
     <Compile Include="Helper.fs" />
     <Compile Include="CharData.fs" />
-    <Compile Include="TokenTypes.fs" />
-    <Compile Include="Parser.fs" />
-    <Compile Include="ParserStates.fs" />
-    <Compile Include="Tokenizer.fs" />
+    <Compile Include="Tokenizer.Tokens.fs" />
+    <Compile Include="Tokenizer.Actions.fs" />
+    <Compile Include="Tokenizer.States.fs" />
+    <Compile Include="Tokenizer.Controller.fs" />
   </ItemGroup>
   <ItemGroup>
-    <Reference Include="mscorlib" />
     <Reference Include="FSharp.Core">
-      <HintPath>$(ProgramFiles)\Microsoft F#\Silverlight\Libraries\Client\$(SilverlightVersion)\FSharp.Core.dll</HintPath>
+      <HintPath>deps\FSharp.Core.dll</HintPath>
     </Reference>
+    <Reference Include="mscorlib" />
     <Reference Include="System" />
     <Reference Include="System.Core" />
-    <Reference Include="System.Net" />
-    <Reference Include="System.Windows" />
-    <Reference Include="System.Windows.Browser" />
-    <Reference Include="System.Xml" />
   </ItemGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
 	     Other similar extension points exist, see Microsoft.Common.targets.

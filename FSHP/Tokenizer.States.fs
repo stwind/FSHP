@@ -1,13 +1,18 @@
-﻿namespace FSHP
+﻿namespace FSHP.Tokenizer
 
 open System
 open FSHP
-open FSHP.TokenTypes
-open FSHP.Parser
+open FSHP.Tokenizer.Tokens
+open FSHP.Tokenizer.Actions
 
-module ParserStates  =
+module States  =
+
+    type StateDescAttribute(name) = 
+        inherit Attribute ()
+        member this.name = name
 
     // 8.2.4.69 Tokenizing character references
+    [<StateDesc("Tokenizing character references")>]
     let consumeCharRef state extra =
         match consumeChar state with
         | _, NotCharRef extra _ -> None
@@ -16,6 +21,7 @@ module ParserStates  =
 
     // 8.2.4.1 Data State
     // not handling the U+0000 case, as we use it as the EOF
+    [<StateDesc("Data State")>]
     let rec dataState state =
         match consumeChar state with
         | s, '&' -> 
@@ -28,7 +34,8 @@ module ParserStates  =
             Next (dataState, s |> emitCharToken other)
 
     // 8.2.4.2 Character reference in data state
-    and charRefInDataState extra state =
+    and [<StateDesc("Character reference in data state")>]
+        charRefInDataState extra state =
         match consumeCharRef state extra with
         | Some (c, s1) -> 
             Next (dataState, s1 |> emitCharToken c)
@@ -36,7 +43,8 @@ module ParserStates  =
             Next (dataState, state |> emitCharToken '&')
 
     // 8.4.2.3  RCDATA state
-    and rcDataState state =
+    and [<StateDesc("RCDATA state")>]
+        rcDataState state =
         match consumeChar state with
         | s, '&' -> 
             Next (charRefInRCDataState, s)
@@ -48,7 +56,8 @@ module ParserStates  =
             Next (rcDataState, s |> emitCharToken other)
 
     // 8.2.4.4 Character reference in RCDATA state
-    and charRefInRCDataState state =
+    and [<StateDesc("Character reference in RCDATA state")>]
+        charRefInRCDataState state =
         match consumeCharRef state [] with
         | Some (c, s1) -> 
             Next (rcDataState, s1 |> emitCharToken c)
@@ -56,7 +65,8 @@ module ParserStates  =
             Next (rcDataState, state |> emitCharToken '&')
 
     // 8.2.4.5 RAWTEXT state
-    and rawTextState state =
+    and [<StateDesc("RAWTEXT state")>]
+        rawTextState state =
         match consumeChar state with
         | s, '<' ->
             Next (rawTextLTSignState, s)
@@ -66,7 +76,8 @@ module ParserStates  =
             Next (rawTextState, s |> emitCharToken other)
 
     // 8.2.4.6 Script data state
-    and scriptDataState state =
+    and [<StateDesc("Script data state")>]
+        scriptDataState state =
         match consumeChar state with
         | s, '<' ->
             Next (scriptDataLTSignState, s)
@@ -76,7 +87,8 @@ module ParserStates  =
             Next (scriptDataState, s |> emitCharToken other)
 
     // 8.2.4.7 PLAINTEXT state
-    and plainTextState state =
+    and [<StateDesc("PLAINTEXT state")>]
+        plainTextState state =
         match consumeChar state with
         | s, Char.NUL ->
             emitToken EOF s |> End
@@ -84,24 +96,26 @@ module ParserStates  =
             Next (plainTextState, s |> emitCharToken other)
 
     // 8.2.4.8 Tag open state
-    and tagOpenState state =
+    and [<StateDesc("Tag open state")>]
+        tagOpenState state =
         match consumeChar state with
         | s, '!' -> 
             Next (markupDecOpenState, s)
         | s, '/' -> 
             Next (endTagOpenState, s)
         | s, Lower c | s, Upper c -> 
-            Next (tagNameState, (Char.ToLower c |> string, [], false) |> StartTag |> Some |> newToken <| state)
+            Next (tagNameState, (Char.ToLower c |> string, [], false) |> StartTag |> Some |> newToken <| s)
         | s, '?' -> 
             Next (bogusCommentState, state |> parseError "? in tagOpenState")
         | _ -> 
             Next (dataState, state |> parseError "error in tagOpenState" |> emitCharToken '<')
 
     // 8.2.4.9 End Tag Open State
-    and endTagOpenState state =
+    and [<StateDesc("End Tag Open State")>]
+        endTagOpenState state =
         match consumeChar state with
         | s, Lower c | s, Upper c ->
-            Next (tagNameState, (Char.ToLower c |> string, [], false) |> StartTag |> Some |> newToken <| state)
+            Next (tagNameState, Char.ToLower c |> string |> EndTag |> Some |> newToken <| s)
         | s, '<' -> 
             Next (dataState, s |> parseError "< in endTagOpenState")
         | s, Char.NUL ->
@@ -110,7 +124,8 @@ module ParserStates  =
             Next (bogusCommentState, state |> parseError "error in endTagOpenState")
 
     // 8.2.4.10 Tag name state
-    and tagNameState state =
+    and [<StateDesc("Tag name state")>]
+        tagNameState state =
         match consumeChar state with
         | s, Char.HT | s, Char.LF | s, Char.FF | s, Char.SP ->
             Next (beforeAttrNameState, s)
@@ -126,7 +141,8 @@ module ParserStates  =
             Next (tagNameState, s |> appendToTokenName c)
 
     // 8.2.4.11 RCDATA less-than sign state
-    and rcDataLTSignState state =
+    and [<StateDesc("RCDATA less-than sign state")>]
+        rcDataLTSignState state =
         match consumeChar state with
         | s, '/' ->
             Next (rcEndTagOpenState, s |> setTempBuffer [])
@@ -134,7 +150,8 @@ module ParserStates  =
             Next (rcDataState, state |> emitCharToken '<')
 
     // 8.2.4.12 RCDATA end tag open state
-    and rcEndTagOpenState state =
+    and [<StateDesc("RCDATA end tag open state")>]
+        rcEndTagOpenState state =
         match consumeChar state with
         | s, Lower c | s, Upper c ->
             Next (rcEndTagNameState, s |> newToken (c |> Char.ToLower |> string |> EndTag |> Some)
@@ -143,7 +160,8 @@ module ParserStates  =
             Next (rcDataState, state |> emitCharTokens ['<';'/'])
 
     // 8.2.4.13 RCDATA end tag name state
-    and rcEndTagNameState state =
+    and [<StateDesc("RCDATA end tag name state")>]
+        rcEndTagNameState state =
         match consumeChar state with
         | s, Char.HT | s, Char.LF | s, Char.FF | s, Char.SP when isCurrentTokenEndTag s ->
             Next (beforeAttrNameState, s)
@@ -158,7 +176,8 @@ module ParserStates  =
             Next (rcDataState, state |> emitCharTokens (['<';'/'] @ state.tempBuffer))
 
     // 8.2.4.14 RAWTEXT less-than sign state
-    and rawTextLTSignState state =
+    and [<StateDesc("RAWTEXT less-than sign state")>]
+        rawTextLTSignState state =
         match consumeChar state with
         | s, '/' ->
             Next (rawTextEndTagOpenState, s |> setTempBuffer [])
@@ -166,7 +185,8 @@ module ParserStates  =
             Next (rawTextState, state |> emitCharToken '<')
 
     // 8.2.4.15 RAWTEXT end tag open state
-    and rawTextEndTagOpenState state =
+    and [<StateDesc("RAWTEXT end tag open state")>]
+        rawTextEndTagOpenState state =
         match consumeChar state with
         | s, Lower c | s, Upper c ->
             Next (rawTextEndTagNameState, s |> newToken (c |> Char.ToLower |> string |> EndTag |> Some)
@@ -175,7 +195,8 @@ module ParserStates  =
             Next (rawTextState, state |> emitCharTokens ['<';'/'])
 
     // 8.2.4.16 RAWTEXT end tag name state
-    and rawTextEndTagNameState state =
+    and [<StateDesc("RAWTEXT end tag name state")>]
+        rawTextEndTagNameState state =
         match consumeChar state with
         | s, Char.HT | s, Char.LF | s, Char.FF | s, Char.SP when isCurrentTokenEndTag s ->
             Next (beforeAttrNameState, s)
@@ -190,7 +211,8 @@ module ParserStates  =
             Next (rawTextState, state |> emitCharTokens (['<';'/'] @ state.tempBuffer))
 
     // 8.2.4.17 Script data less-than sign state
-    and scriptDataLTSignState state =
+    and [<StateDesc("Script data less-than sign state")>]
+        scriptDataLTSignState state =
         match consumeChar state with
         | s, '/' ->
             Next (scriptDataEndTagOpenState, s |> setTempBuffer [])
@@ -200,7 +222,8 @@ module ParserStates  =
             Next (scriptDataState, state |> emitCharToken '<')
 
     // 8.2.4.18 Script data end tag open state
-    and scriptDataEndTagOpenState state =
+    and [<StateDesc("Script data end tag open state")>]
+        scriptDataEndTagOpenState state =
         match consumeChar state with
         | s, Lower c | s, Upper c ->
             Next (scriptDataEndTagNameState, s |> newToken (c |> Char.ToLower |> string |> EndTag |> Some)
@@ -209,7 +232,8 @@ module ParserStates  =
             Next (scriptDataState, state |> emitCharTokens ['<';'/'])
 
     // 8.2.4.19 Script data end tag name state
-    and scriptDataEndTagNameState state =
+    and [<StateDesc("Script data end tag name state")>]
+        scriptDataEndTagNameState state =
         match consumeChar state with
         | s, Char.HT | s, Char.LF | s, Char.FF | s, Char.SP when isCurrentTokenEndTag s ->
             Next (beforeAttrNameState, s)
@@ -224,7 +248,8 @@ module ParserStates  =
             Next (scriptDataState, state |> emitCharTokens (['<';'/'] @ state.tempBuffer))
 
     // 8.2.4.20 Script data escape start state
-    and scriptDataEscapeStartState state =
+    and [<StateDesc("Script data escape start state")>]
+        scriptDataEscapeStartState state =
         match consumeChar state with
         | s, '-' ->
             Next (scriptDataEscapeStartDashState, s |> emitCharToken '-')
@@ -232,7 +257,8 @@ module ParserStates  =
             Next (scriptDataState, state)
 
     // 8.2.4.21 Script data escape start dash state
-    and scriptDataEscapeStartDashState state =
+    and [<StateDesc("Script data escape start dash state")>]
+        scriptDataEscapeStartDashState state =
         match consumeChar state with
         | s, '-' ->
             Next (scriptDataEscapedDashDashState, s |> emitCharToken '-')
@@ -240,7 +266,8 @@ module ParserStates  =
             Next (scriptDataState, state)
 
     // 8.2.4.22 Script data escaped state
-    and scriptDataEscapedState state =
+    and [<StateDesc("Script data escaped state")>]
+        scriptDataEscapedState state =
         match consumeChar state with
         | s, '-' ->
             Next (scriptDataEscapedDashState, s |> emitCharToken '-')
@@ -252,7 +279,8 @@ module ParserStates  =
             Next (scriptDataEscapedState, s |> emitCharToken other)
 
     // 8.2.4.23 Script data escaped dash state
-    and scriptDataEscapedDashState state =
+    and [<StateDesc("Script data escaped dash state")>]
+        scriptDataEscapedDashState state =
         match consumeChar state with
         | s, '-' ->
             Next (scriptDataEscapedDashDashState, s |> emitCharToken '-')
@@ -264,7 +292,8 @@ module ParserStates  =
             Next (scriptDataEscapedState, s |> emitCharToken other)
 
     // 8.2.4.24 Script data escaped dash dash state
-    and scriptDataEscapedDashDashState state =
+    and [<StateDesc("Script data escaped dash dash state")>]
+        scriptDataEscapedDashDashState state =
         match consumeChar state with
         | s, '-' ->
             Next (scriptDataEscapedDashDashState, s |> emitCharToken '-')
@@ -278,7 +307,8 @@ module ParserStates  =
             Next (scriptDataEscapedState, s |> emitCharToken other)
 
     // 8.2.4.25 Script data escaped less-than sign state
-    and scriptDataEscapedLTSignState state =
+    and [<StateDesc("Script data escaped less-than sign state")>]
+        scriptDataEscapedLTSignState state =
         match consumeChar state with
         | s, '/' ->
             Next (scriptDataEscapedEndTagOpenState, s |> setTempBuffer [])
@@ -290,7 +320,8 @@ module ParserStates  =
             Next (scriptDataEscapedState, state |> emitCharToken '<')
 
     // 8.2.4.26 Script data escaped end tag open state
-    and scriptDataEscapedEndTagOpenState state =
+    and [<StateDesc("Script data escaped end tag open state")>]
+        scriptDataEscapedEndTagOpenState state =
         match consumeChar state with
         | s, Lower c | s, Upper c ->
             Next (scriptDataEndTagNameState, s |> newToken (c |> Char.ToLower |> string |> EndTag |> Some)
@@ -299,7 +330,8 @@ module ParserStates  =
             Next (scriptDataEscapedState, state |> emitCharTokens ['<';'/'])
 
     // 8.2.4.27 Script data escaped end tag name state
-    and scriptDataEscapedEndTagNameState state =
+    and [<StateDesc("Script data escaped end tag name state")>]
+        scriptDataEscapedEndTagNameState state =
         match consumeChar state with
         | s, Char.HT | s, Char.LF | s, Char.FF | s, Char.SP when isCurrentTokenEndTag s ->
             Next (beforeAttrNameState, s)
@@ -314,7 +346,8 @@ module ParserStates  =
             Next (scriptDataEscapedState, state |> emitCharTokens (['<';'/'] @ state.tempBuffer))
 
     // 8.2.4.28 Script data double escape start state
-    and scriptDataDoubleEscapedStartState state =
+    and [<StateDesc("Script data double escape start state")>]
+        scriptDataDoubleEscapedStartState state =
         match consumeChar state with
         | s, c when c = Char.HT || c = Char.LF || c = Char.FF ||
                     c = Char.SP || c = '/' || c = '>' ->
@@ -328,7 +361,8 @@ module ParserStates  =
             Next (scriptDataEscapedState, state)
 
     // 8.2.4.29 Script data double escaped state
-    and scriptDataDoubleEscapedState state =
+    and [<StateDesc("Script data double escaped state")>]
+        scriptDataDoubleEscapedState state =
         match consumeChar state with
         | s, '-' ->
             Next (scriptDataDoubleEscapedDashState, s |> emitCharToken '-')
@@ -340,7 +374,8 @@ module ParserStates  =
             Next (scriptDataDoubleEscapedState, s |> emitCharToken other)
             
     // 8.2.4.30 Script data double escaped dash state
-    and scriptDataDoubleEscapedDashState state =
+    and [<StateDesc("Script data double escaped dash state")>]
+        scriptDataDoubleEscapedDashState state =
         match consumeChar state with
         | s, '-' ->
             Next (scriptDataDoubleEscapedDashDashState, s |> emitCharToken '-')
@@ -352,7 +387,8 @@ module ParserStates  =
             Next (scriptDataDoubleEscapedState, s |> emitCharToken other)
 
     // 8.2.4.31 Script data double escaped dash dash state
-    and scriptDataDoubleEscapedDashDashState state =
+    and [<StateDesc("Script data double escaped dash dash state")>]
+        scriptDataDoubleEscapedDashDashState state =
         match consumeChar state with
         | s, '-' ->
             Next (scriptDataDoubleEscapedDashDashState, s |> emitCharToken '-')
@@ -366,7 +402,8 @@ module ParserStates  =
             Next (scriptDataDoubleEscapedState, s |> emitCharToken other)
 
     // 8.2.4.32 Script data double escaped less-than sign state
-    and scriptDataDoubleEscapedLTSignState state =
+    and [<StateDesc("Script data double escaped less-than sign state")>]
+        scriptDataDoubleEscapedLTSignState state =
         match consumeChar state with
         | s, '/' ->
             Next (scriptDataDoubleEscapeEndState, s |> emitCharToken '/')
@@ -374,7 +411,8 @@ module ParserStates  =
             Next (scriptDataDoubleEscapedState, state)
 
     // 8.2.4.33 Script data double escape end state
-    and scriptDataDoubleEscapeEndState state =
+    and [<StateDesc("Script data double escape end state")>]
+        scriptDataDoubleEscapeEndState state =
         match consumeChar state with
         | s, (Char.HT as c) | s, (Char.LF as c) | s, (Char.FF as c)
         | s, (Char.SP as c) | s, ('/' as c) | s, ('>' as c) ->
@@ -388,8 +426,9 @@ module ParserStates  =
             Next (scriptDataDoubleEscapedState, state)
 
     // 8.2.4.34 Script data double escape end state
+    and [<StateDesc("Script data double escape end state")>]
     // ignoring the U+0000 case
-    and beforeAttrNameState state =
+        beforeAttrNameState state =
         match consumeChar state with
         | s, Char.HT | s, Char.LF | s, Char.FF | s, Char.SP -> beforeAttrNameState s
         | s, '/' ->
@@ -407,7 +446,8 @@ module ParserStates  =
 
     // 8.2.4.35 Attribute name state
     // TODO: additional handler must be implement here, see w3 specs
-    and attrNameState state =
+    and [<StateDesc("Attribute name state")>]
+        attrNameState state =
         match consumeChar state with
         | s, Char.HT | s, Char.LF | s, Char.FF | s, Char.SP ->
             Next (afterAttrNameState, s)
@@ -428,7 +468,8 @@ module ParserStates  =
             Next (attrNameState, s |> appendToCurrentAttrName other)
 
     // 8.2.4.36 After attribute name state
-    and afterAttrNameState state =
+    and [<StateDesc("After attribute name state")>]
+        afterAttrNameState state =
         match consumeChar state with
         | s, Char.HT | s, Char.LF | s, Char.FF | s, Char.SP -> afterAttrNameState s
         | s, '/' ->
@@ -447,7 +488,8 @@ module ParserStates  =
             Next (attrNameState, s |> newAttribute (string (Char.ToLower other), ""))
 
     // 8.2.4.37 Before attribute value state
-    and beforeAttrValueState state =
+    and [<StateDesc("Before attribute value state")>]
+        beforeAttrValueState state =
         match consumeChar state with
         | s, Char.HT | s, Char.LF | s, Char.FF | s, Char.SP -> beforeAttrValueState s
         | s, '"' ->
@@ -466,7 +508,8 @@ module ParserStates  =
             Next (attrValueUnquotedState, s |> appendToCurrentAttrValue other)
 
     // 8.2.4.38 Attribute value (double-quoted) state
-    and attrValueDoubleQuotedState state =
+    and [<StateDesc("Attribute value (double-quoted) state")>]
+        attrValueDoubleQuotedState state =
         match consumeChar state with
         | s, '"' ->
             Next (afterAttrValueQuotedState, s)
@@ -478,7 +521,8 @@ module ParserStates  =
             Next (attrValueUnquotedState, s |> appendToCurrentAttrValue other)
 
     // 8.2.4.39 Attribute value (single-quoted) state
-    and attrValueSingleQuotedState state =
+    and [<StateDesc("Attribute value (single-quoted) state")>]
+        attrValueSingleQuotedState state =
         match consumeChar state with
         | s, ''' ->
             Next (afterAttrValueQuotedState, s)
@@ -490,7 +534,8 @@ module ParserStates  =
             Next (attrValueSingleQuotedState, s |> appendToCurrentAttrValue other)
 
     // 8.2.4.40 Attribute value (unquoted) state
-    and attrValueUnquotedState state =
+    and [<StateDesc("Attribute value (unquoted) state")>]
+        attrValueUnquotedState state =
         match consumeChar state with
         | s, Char.HT | s, Char.LF | s, Char.FF | s, Char.SP ->
             Next (beforeAttrNameState, s)
@@ -506,7 +551,8 @@ module ParserStates  =
             Next (attrValueUnquotedState, s |> appendToCurrentAttrValue other)
 
     // 8.2.4.41 Attribute value (unquoted) state
-    and charRefInAttrValueState extra back state =
+    and [<StateDesc("Attribute value (unquoted) state")>]
+        charRefInAttrValueState extra back state =
         match consumeCharRef state extra with
         | Some (c, s1) -> 
             Next (back, s1 |> appendToCurrentAttrValue c)
@@ -514,7 +560,8 @@ module ParserStates  =
             Next (back, state |> appendToCurrentAttrValue '&')
 
     // 8.2.4.42 After attribute value (quoted) state
-    and afterAttrValueQuotedState state =
+    and [<StateDesc("After attribute value (quoted) state")>]
+        afterAttrValueQuotedState state =
         match consumeChar state with
         | s, Char.HT | s, Char.LF | s, Char.FF | s, Char.SP ->
             Next (beforeAttrNameState, s)
@@ -528,7 +575,8 @@ module ParserStates  =
             Next (beforeAttrNameState, state |> parseError "unallowed character in afterAttrValueQuotedState")
 
     // 8.2.4.43 After attribute value (quoted) state
-    and selfClosingStartTagState state =
+    and [<StateDesc("After attribute value (quoted) state")>]
+        selfClosingStartTagState state =
         match consumeChar state with
         | s, '>' ->
             Next (dataState, s |> setSelfClosing |> emitCurrentToken)
@@ -538,7 +586,8 @@ module ParserStates  =
             Next (beforeAttrNameState, state |> parseError "unallowed character in selfClosingStartTagState")
 
     // 8.2.4.44 Bogus comment state
-    and bogusCommentState state =
+    and [<StateDesc("Bogus comment state")>]
+        bogusCommentState state =
         let s, chars = consumeCharUpTo ['<';Char.NUL] state
         let comment = String(Array.ofList chars) |> Comment |> Some |> newToken <| s
         let out = match consumeChar comment with
@@ -547,7 +596,8 @@ module ParserStates  =
         Next (dataState, out)
 
     // 8.2.4.45 Markup declaration open state
-    and markupDecOpenState state =
+    and [<StateDesc("Markup declaration open state")>]
+        markupDecOpenState state =
         match state with
         | s when isFollowedBy "--" s ->
             let s1, _ = consumeChars 2 s
@@ -563,7 +613,8 @@ module ParserStates  =
             Next (bogusCommentState, state |> parseError "unallowed character in markupDecOpenState")
             
     // 8.2.4.46 Comment start state
-    and commentStartState state =
+    and [<StateDesc("Comment start state")>]
+        commentStartState state =
         match consumeChar state with
         | s, '-' ->
             Next (commentStartDashState, s)
@@ -575,8 +626,9 @@ module ParserStates  =
             Next (commentState, s |> appendToTokenName other )
 
     // 8.2.4.47 Comment start dash state
+    and [<StateDesc("Comment start dash state")>]
     // FIXME seems we have trouble ignoring the U+0000 case up till now
-    and commentStartDashState state =
+        commentStartDashState state =
         match consumeChar state with
         | s, '-' ->
             Next (commentEndState, s)
@@ -588,7 +640,8 @@ module ParserStates  =
             Next (commentState, s |> appendCharsToTokenName ['-';other])
 
     // 8.2.4.48 Comment state
-    and commentState state =
+    and [<StateDesc("Comment state")>]
+        commentState state =
         match consumeChar state with
         | s, '-' ->
             Next (commentEndDashState, s)
@@ -598,7 +651,8 @@ module ParserStates  =
             Next (commentState, s |> appendToTokenName other)
 
     // 8.2.4.49 Comment end dash state
-    and commentEndDashState state =
+    and [<StateDesc("Comment end dash state")>]
+        commentEndDashState state =
         match consumeChar state with
         | s, '-' ->
             Next (commentEndState, s)
@@ -608,7 +662,8 @@ module ParserStates  =
             Next (commentState, s |> appendCharsToTokenName ['-';other])
 
     // 8.2.4.50 Comment end state
-    and commentEndState state =
+    and [<StateDesc("Comment end state")>]
+        commentEndState state =
         match consumeChar state with
         | s, '>' ->
             Next (dataState, s |> emitCurrentToken)
@@ -622,7 +677,8 @@ module ParserStates  =
             Next (commentState, s |> appendCharsToTokenName ['-';other])
 
     // 8.2.4.51 Comment end bang state
-    and commentEndBangState state =
+    and [<StateDesc("Comment end bang state")>]
+        commentEndBangState state =
         match consumeChar state with
         | s, '-' ->
             Next (commentEndDashState, s |> appendCharsToTokenName ['-';'!'])
@@ -634,7 +690,8 @@ module ParserStates  =
             Next (commentState, s |> appendCharsToTokenName ['-';'!';other])
 
     // 8.2.4.52 DOCTYPE state
-    and doctypeState state =
+    and [<StateDesc("DOCTYPE state")>]
+        doctypeState state =
         match consumeChar state with
         | s, Char.HT | s, Char.LF | s, Char.FF | s, Char.SP ->
             Next (beforeDoctypeNameState, s)
@@ -645,7 +702,8 @@ module ParserStates  =
             Next (beforeDoctypeNameState, state |> parseError "unallowed character in doctypeState")
 
     // 8.2.4.53 Before DOCTYPE name state
-    and beforeDoctypeNameState state =
+    and [<StateDesc("Before DOCTYPE name state")>]
+        beforeDoctypeNameState state =
         match consumeChar state with
         | s, Char.HT | s, Char.LF | s, Char.FF | s, Char.SP -> beforeDoctypeNameState s
         | s, Upper c ->
@@ -658,7 +716,8 @@ module ParserStates  =
             Next (doctypeNameState, s |> newToken (Some (DocType (string other , "", "", false))))
 
     // 8.2.4.54 DOCTYPE name state
-    and doctypeNameState state =
+    and [<StateDesc("DOCTYPE name state")>]
+        doctypeNameState state =
         match consumeChar state with
         | s, Char.HT | s, Char.LF | s, Char.FF | s, Char.SP ->
             Next (afterDoctypeNameState, s)
@@ -673,7 +732,8 @@ module ParserStates  =
             Next (doctypeNameState, s |> appendToTokenName other)
 
     // 8.2.4.55 After DOCTYPE name state
-    and afterDoctypeNameState state =
+    and [<StateDesc("After DOCTYPE name state")>]
+        afterDoctypeNameState state =
         match consumeChar state with
         | s, Char.HT | s, Char.LF | s, Char.FF | s, Char.SP -> afterDoctypeNameState s
         | s, '>' ->
@@ -691,7 +751,8 @@ module ParserStates  =
             Next (bogusDoctypeState, s |> parseError "unallowed character in afterDoctypeNameState")
 
     // 8.2.4.56 After DOCTYPE name state
-    and afterDoctypePublicKeywordState state =
+    and [<StateDesc("After DOCTYPE name state")>]
+        afterDoctypePublicKeywordState state =
         match consumeChar state with
         | s, Char.HT | s, Char.LF | s, Char.FF | s, Char.SP ->
             Next (beforeDoctypePublicIdState, s)
@@ -712,7 +773,8 @@ module ParserStates  =
                                        |> setQuirk true)
 
     // 8.2.4.57 Before DOCTYPE public identifier state
-    and beforeDoctypePublicIdState state =
+    and [<StateDesc("Before DOCTYPE public identifier state")>]
+        beforeDoctypePublicIdState state =
         match consumeChar state with
         | s, Char.HT | s, Char.LF | s, Char.FF | s, Char.SP -> beforeDoctypePublicIdState s
         | s, '"' ->
@@ -730,7 +792,8 @@ module ParserStates  =
                                        |> setQuirk true)
 
     // 8.2.4.58 DOCTYPE public identifier (double-quoted) state
-    and doctypePublicIdDoubleQuotedState state =
+    and [<StateDesc("DOCTYPE public identifier (double-quoted) state")>]
+        doctypePublicIdDoubleQuotedState state =
         match consumeChar state with
         | s, '"' ->
             Next (afterDoctypePublicIdState, s)
@@ -744,7 +807,8 @@ module ParserStates  =
             Next (doctypePublicIdDoubleQuotedState, s |> appendPid other)
 
     // 8.2.4.59 DOCTYPE public identifier (single-quoted) state
-    and doctypePublicIdSingleQuotedState state =
+    and [<StateDesc("DOCTYPE public identifier (single-quoted) state")>]
+        doctypePublicIdSingleQuotedState state =
         match consumeChar state with
         | s, ''' ->
             Next (afterDoctypePublicIdState, s)
@@ -758,7 +822,8 @@ module ParserStates  =
             Next (doctypePublicIdDoubleQuotedState, s |> appendPid other)
 
     // 8.2.4.60 After DOCTYPE public identifier state
-    and afterDoctypePublicIdState state =
+    and [<StateDesc("After DOCTYPE public identifier state")>]
+        afterDoctypePublicIdState state =
         match consumeChar state with
         | s, Char.HT | s, Char.LF | s, Char.FF | s, Char.SP ->
             Next (betweenDoctypePublicSystemIdState, s)
@@ -778,7 +843,8 @@ module ParserStates  =
                                        |> setQuirk true)
 
     // 8.2.4.61 Between DOCTYPE public and system identifiers state
-    and betweenDoctypePublicSystemIdState state =
+    and [<StateDesc("Between DOCTYPE public and system identifiers state")>]
+        betweenDoctypePublicSystemIdState state =
         match consumeChar state with
         | s, Char.HT | s, Char.LF | s, Char.FF | s, Char.SP -> betweenDoctypePublicSystemIdState s
         | s, '>' ->
@@ -795,7 +861,8 @@ module ParserStates  =
                                        |> setQuirk true)
 
     // 8.2.4.62 Between DOCTYPE public and system identifiers state
-    and afterDoctypeSystemKeywordState state =
+    and [<StateDesc("Between DOCTYPE public and system identifiers state")>]
+        afterDoctypeSystemKeywordState state =
         match consumeChar state with
         | s, Char.HT | s, Char.LF | s, Char.FF | s, Char.SP ->
             Next (beforeDoctypeSystemIdState, s)
@@ -816,7 +883,8 @@ module ParserStates  =
                                        |> setQuirk true)
 
     // 8.2.4.63 Before DOCTYPE system identifier state
-    and beforeDoctypeSystemIdState state =
+    and [<StateDesc("Before DOCTYPE system identifier state")>]
+        beforeDoctypeSystemIdState state =
         match consumeChar state with
         | s, Char.HT | s, Char.LF | s, Char.FF | s, Char.SP -> beforeDoctypeSystemIdState s
         | s, '"' ->
@@ -834,7 +902,8 @@ module ParserStates  =
                                        |> setQuirk true)
 
     // 8.2.4.64 DOCTYPE system identifier (double-quoted) state
-    and doctypeSystemIdDoubleQuotedState state = 
+    and [<StateDesc("DOCTYPE system identifier (double-quoted) state")>]
+        doctypeSystemIdDoubleQuotedState state = 
         match consumeChar state with
         | s, '"' ->
             Next (afterDoctypeSystemIdState, s)
@@ -848,7 +917,8 @@ module ParserStates  =
             Next (doctypeSystemIdDoubleQuotedState, s |> appendSid other)
 
     // 8.2.4.65 DOCTYPE system identifier (single-quoted) state
-    and doctypeSystemIdSingleQuotedState state =
+    and [<StateDesc("DOCTYPE system identifier (single-quoted) state")>]
+        doctypeSystemIdSingleQuotedState state =
         match consumeChar state with
         | s, ''' ->
             Next (afterDoctypeSystemIdState, s)
@@ -862,7 +932,8 @@ module ParserStates  =
             Next (doctypeSystemIdSingleQuotedState, s |> appendSid other)
 
     // 8.2.4.66 After DOCTYPE system identifier state
-    and afterDoctypeSystemIdState state =
+    and [<StateDesc("After DOCTYPE system identifier state")>]
+        afterDoctypeSystemIdState state =
         match consumeChar state with
         | s, Char.HT | s, Char.LF | s, Char.FF | s, Char.SP -> afterDoctypeSystemIdState s
         | s, '>' ->
@@ -874,7 +945,8 @@ module ParserStates  =
             Next (bogusDoctypeState, s |> parseError "unallowed character in afterDoctypeSystemIdState")
 
     // 8.2.4.67 Bogus DOCTYPE state
-    and bogusDoctypeState state =
+    and [<StateDesc("Bogus DOCTYPE state")>]
+        bogusDoctypeState state =
         match consumeChar state with
         | s, '>' ->
             Next (dataState, s |> emitCurrentToken)
@@ -883,7 +955,8 @@ module ParserStates  =
         | s, _ -> bogusDoctypeState s
 
     // 8.2.4.68 CDATA section state
-    and cdataSectionState state =
+    and [<StateDesc("CDATA section state")>]
+        cdataSectionState state =
         match consumeUntilMatch "]]>" state with
         | s, '>' :: ']' :: ']' :: chars ->
             Next (dataState, s |> emitCharTokens (List.rev chars))
