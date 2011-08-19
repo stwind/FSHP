@@ -20,9 +20,9 @@ module Actions =
             tempBuffer : char list
         }
 
-    type Next<'s> =
-        | Next of ('s -> Next<'s>) * 's
-        | End of 's
+    type Action<'s> =
+        | Next of ('s -> Action<'s> * 's)
+        | End
 
     let consumeChar state =
         let cp, is = state.currentPos, state.inputStream

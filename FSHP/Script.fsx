@@ -12,4 +12,4 @@
 open FSHP.Tokenizer
 open FSHP.Tokenizer.States
 
-tokenize "<html>hello</html>" |> printfn "%A"
+tokenize "<html>hello<h1>fuck</h1></html>" |> printfn "%A"
