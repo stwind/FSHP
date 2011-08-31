@@ -49,8 +49,7 @@ module Controller =
 
     let tokenize stream =
         let state = toState stream
-        let rec loop next =
-            tokenizer {
+        let rec loop next = tokenizer {
                     let! n = next
                     match n with
                     | Next n1 -> return! loop n1
